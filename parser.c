@@ -52,23 +52,78 @@ humans use degrees, so the file will contain degrees for rotations,
 be sure to conver those degrees to radians (M_PI is the constant
 for PI)
 ====================*/
-void parse_file ( char * filename, 
-                  struct matrix * transform, 
+void parse_file ( char * filename,
+                  struct matrix * transform,
                   struct matrix * edges,
                   screen s) {
 
   FILE *f;
   char line[256];
   clear_screen(s);
+  double x0,y0,z0,x1,y1,z1;
 
-  if ( strcmp(filename, "stdin") == 0 ) 
+  color c;
+  c.red = 0;
+  c.green = 45;
+  c.blue = 187;
+
+  if ( strcmp(filename, "stdin") == 0 )
     f = stdin;
   else
     f = fopen(filename, "r");
-  
+
   while ( fgets(line, 255, f) != NULL ) {
-    line[strlen(line)-1]='\0';
-    printf(":%s:\n",line);
-  }
+      line[strlen(line)-1]='\0';
+      if(!strcmp(line,"line")){
+        fgets(line,255,f);
+        line[strlen(line)-1]='\0';
+        sscanf(line,"%lf %lf %lf %lf %lf %lf",&x0,&y0,&z0,&x1,&y1,&z1);
+        add_edge(edges, x0, y0, z0, x1, y1, z1);
+      }
+      if(!strcmp(line, "ident")) ident(transform);
+      if(!strcmp(line, "scale")){
+        fgets(line, 255, f);
+        line[strlen(line)-1]='\0';
+        sscanf(line, "%lf %lf %lf",&x0,&y0,&z0);
+        struct matrix * scale = make_scale(x0,y0,z0);
+        matrix_mult(scale, transform);
+      }
+      if(!strcmp(line, "move")){
+        fgets(line,255,f);
+        line[strlen(line)-1]='\0';
+        sscanf(line, "%lf %lf %lf", &x0,&y0,&z0);
+        struct matrix * translate = make_translate(x0, y0, z0);
+        matrix_mult(translate, transform);
+      }
+      if(!strcmp(line, "rotate")){
+        char axis;
+        fgets(line, 255, f);
+        line[strlen(line)-1]='\0';
+        sscanf(line, "%c %lf", &axis, &x0);
+        x0 = x0 * M_PI / 180;
+        struct matrix * rotate;
+        if(axis == 'x')rotate = make_rotX(x0);
+        if(axis == 'y')rotate = make_rotY(x0);
+        if(axis == 'z')rotate = make_rotZ(x0);
+        matrix_mult(rotate, transform);
+      }
+      if(!strcmp(line, "apply")) matrix_mult(transform, edges);
+      if(!strcmp(line, "display")){
+        clear_screen(s);
+        draw_lines(edges,s,c);
+        display(s);
+      }
+      if(!strcmp(line, "save")){
+        fgets(line,255,f);
+        line[strlen(line)-1]='\0';
+        clear_screen(s);
+        draw_lines(edges, s, c);
+        save_extension(s, line);
+      }
+      if(!strcmp(line,"quit")){
+        break;
+      }
+
+    }
+    printf("\n");
 }
-  
